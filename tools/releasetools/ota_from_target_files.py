@@ -42,6 +42,11 @@ Usage:  ota_from_target_files [flags] input_target_files output_ota_package
       radio image. This option is only meaningful when -i is specified,
       because a full radio is always included in a full OTA if applicable.
 
+ --full_bootloader
+      When generating an incremental OTA, always include a full copy of
+      bootloader image. This option is only meaningful when -i is specified,
+      because a full bootloader is always included in a full OTA if applicable.
+
   -v  (--verify)
       Remount and verify the checksums of the files written to the
       system and vendor (if used) partitions.  Incremental builds only.
@@ -88,6 +93,9 @@ Usage:  ota_from_target_files [flags] input_target_files output_ota_package
       Enable or disable the execution of backuptool.sh.
       Disabled by default.
 
+  --stash_threshold <float>
+      Specifies the threshold that will be used to compute the maximum
+      allowed stash size (defaults to 0.8).
 """
 
 import sys
@@ -126,7 +134,11 @@ OPTIONS.updater_binary = None
 OPTIONS.oem_source = None
 OPTIONS.fallback_to_full = True
 OPTIONS.full_radio = False
-OPTIONS.backuptool = False
+OPTIONS.backuptool = True
+OPTIONS.full_bootloader = False
+# Stash size cannot exceed cache_size * threshold.
+OPTIONS.cache_size = None
+OPTIONS.stash_threshold = 0.8
 
 def MostPopularKey(d, default):
   """Given a dict, return the key corresponding to the largest
@@ -498,7 +510,6 @@ def CopyInstallTools(output_zip):
       output_zip.write(p, p)
   os.chdir(oldcwd)
 
-
 def WriteFullOTAPackage(input_zip, output_zip):
   # TODO: how to determine this?  We don't know what version it will
   # be installed on top of. For now, we expect the API just won't
@@ -534,7 +545,8 @@ def WriteFullOTAPackage(input_zip, output_zip):
       info_dict=OPTIONS.info_dict)
 
   has_recovery_patch = HasRecoveryPatch(input_zip)
-  block_based = OPTIONS.block_based and has_recovery_patch
+
+  block_based = OPTIONS.block_based
 
   #if not OPTIONS.omit_prereq:
   #  ts = GetBuildProp("ro.build.date.utc", OPTIONS.info_dict)
@@ -564,8 +576,8 @@ def WriteFullOTAPackage(input_zip, output_zip):
   #    complete script normally
   #    (allow recovery to mark itself finished and reboot)
 
-  recovery_img = common.GetBootableImage("recovery.img", "recovery.img",
-                                         OPTIONS.input_tmp, "RECOVERY")
+#  recovery_img = common.GetBootableImage("recovery.img", "recovery.img",
+#                                         OPTIONS.input_tmp, "RECOVERY")
   if OPTIONS.two_step:
     if not OPTIONS.info_dict.get("multistage_support", None):
       assert False, "two-step packages not supported by this build"
@@ -584,7 +596,6 @@ reboot_now("%(bcb_dev)s", "recovery");
 else if get_stage("%(bcb_dev)s") == "3/3" then
 """ % bcb_dev)
 
-  # Dump fingerprints
   #script.Print("Target: %s" % CalculateFingerprint(
   #    oem_props, oem_dict, OPTIONS.info_dict))
   script.Print("********************")
@@ -637,10 +648,13 @@ else if get_stage("%(bcb_dev)s") == "3/3" then
     system_diff = common.BlockDifference("system", system_tgt, src=None)
     system_diff.WriteScript(script, output_zip)
   else:
+    script.script.append('unmount("/system");')
+    script.script.append('unmount("/data");')
     script.FormatPartition("/system")
     script.Mount("/system", recovery_mount_options)
-    if not has_recovery_patch:
-      script.UnpackPackageDir("recovery", "/system")
+    script.Mount("/data")
+    #if not has_recovery_patch:
+    #  script.UnpackPackageDir("recovery", "/system")
     script.UnpackPackageDir("system", "/system")
 
     symlinks = CopyPartitionFiles(system_items, input_zip, output_zip)
@@ -654,8 +668,8 @@ else if get_stage("%(bcb_dev)s") == "3/3" then
       common.ZipWriteStr(output_zip, "recovery/" + fn, data)
       system_items.Get("system/" + fn)
 
-    common.MakeRecoveryPatch(OPTIONS.input_tmp, output_sink,
-                             recovery_img, boot_img)
+#    common.MakeRecoveryPatch(OPTIONS.input_tmp, output_sink,
+#                             recovery_img, boot_img)
 
     system_items.GetMetadata(input_zip)
     system_items.Get("system").SetPermissions(script)
@@ -693,6 +707,7 @@ else if get_stage("%(bcb_dev)s") == "3/3" then
 
   script.Print(" ")
   script.Print("Flashing Kernel..")
+
   script.ShowProgress(0.05, 5)
   script.WriteRawImage("/boot", "boot.img")
 
@@ -701,6 +716,11 @@ else if get_stage("%(bcb_dev)s") == "3/3" then
 
   if OPTIONS.extra_script is not None:
     script.AppendExtra(OPTIONS.extra_script)
+
+  # SuperSU leave /system unmounted while we need it mounted here to avoid
+  # a warning from non-Multirom TWRP
+  if block_based:
+    script.Mount("/system")
 
   script.UnmountAll()
 
@@ -794,7 +814,7 @@ def WriteBlockIncrementalOTAPackage(target_zip, source_zip, output_zip):
       output_zip=output_zip,
       script=script,
       metadata=metadata,
-      info_dict=OPTIONS.info_dict)
+      info_dict=OPTIONS.source_info_dict)
 
   # TODO: Currently this works differently from WriteIncrementalOTAPackage().
   # This function doesn't consider thumbprints when writing
@@ -1194,7 +1214,7 @@ def WriteIncrementalOTAPackage(target_zip, source_zip, output_zip):
       output_zip=output_zip,
       script=script,
       metadata=metadata,
-      info_dict=OPTIONS.info_dict)
+      info_dict=OPTIONS.source_info_dict)
 
   system_diff = FileDifference("system", source_zip, target_zip, output_zip)
   script.Mount("/system", recovery_mount_options)
@@ -1227,12 +1247,12 @@ def WriteIncrementalOTAPackage(target_zip, source_zip, output_zip):
   updating_boot = (not OPTIONS.two_step and
                    (source_boot.data != target_boot.data))
 
-  source_recovery = common.GetBootableImage(
-      "/tmp/recovery.img", "recovery.img", OPTIONS.source_tmp, "RECOVERY",
-      OPTIONS.source_info_dict)
-  target_recovery = common.GetBootableImage(
-      "/tmp/recovery.img", "recovery.img", OPTIONS.target_tmp, "RECOVERY")
-  updating_recovery = (source_recovery.data != target_recovery.data)
+#  source_recovery = common.GetBootableImage(
+#      "/tmp/recovery.img", "recovery.img", OPTIONS.source_tmp, "RECOVERY",
+#      OPTIONS.source_info_dict)
+#  target_recovery = common.GetBootableImage(
+#      "/tmp/recovery.img", "recovery.img", OPTIONS.target_tmp, "RECOVERY")
+#  updating_recovery = (source_recovery.data != target_recovery.data)
 
   # Here's how we divide up the progress bar:
   #  0.1 for verifying the start state (PatchCheck calls)
@@ -1395,7 +1415,7 @@ else
 
     if not target_has_recovery_patch:
       def output_sink(fn, data):
-        common.ZipWriteStr(output_zip, "recovery/" + fn, data)
+        # common.ZipWriteStr(output_zip, "recovery/" + fn, data)
         system_items.Get("system/" + fn)
 
       common.MakeRecoveryPatch(OPTIONS.target_tmp, output_sink,
@@ -1469,9 +1489,9 @@ else
     script.Print("Unpacking new vendor files...")
     script.UnpackPackageDir("vendor", "/vendor")
 
-  if updating_recovery and not target_has_recovery_patch:
-    script.Print("Unpacking new recovery...")
-    script.UnpackPackageDir("recovery", "/system")
+  # if updating_recovery and not target_has_recovery_patch:
+  #  script.Print("Unpacking new recovery...")
+  #  script.UnpackPackageDir("recovery", "/system")
 
   system_diff.EmitRenames(script)
   if vendor_diff:
@@ -1546,6 +1566,8 @@ def main(argv):
       OPTIONS.incremental_source = a
     elif o == "--full_radio":
       OPTIONS.full_radio = True
+    elif o == "--full_bootloader":
+      OPTIONS.full_bootloader = True
     elif o in ("-w", "--wipe_user_data"):
       OPTIONS.wipe_user_data = True
     elif o in ("-n", "--no_prereq"):
@@ -1579,6 +1601,12 @@ def main(argv):
       OPTIONS.fallback_to_full = False
     elif o in ("--backup"):
       OPTIONS.backuptool = bool(a.lower() == 'true')
+    elif o == "--stash_threshold":
+      try:
+        OPTIONS.stash_threshold = float(a)
+      except ValueError:
+        raise ValueError("Cannot parse value %r for option %r - expecting "
+                         "a float" % (a, o))
     else:
       return False
     return True
@@ -1590,6 +1618,7 @@ def main(argv):
                                  "package_key=",
                                  "incremental_from=",
                                  "full_radio",
+                                 "full_bootloader",
                                  "wipe_user_data",
                                  "no_prereq",
                                  "extra_script=",
@@ -1603,6 +1632,7 @@ def main(argv):
                                  "verify",
                                  "no_fallback_to_full",
                                  "backup=",
+                                 "stash_threshold=",
                              ], extra_option_handler=option_handler)
 
   if len(args) != 2:
@@ -1659,6 +1689,11 @@ def main(argv):
       temp_zip_file = tempfile.NamedTemporaryFile()
       output_zip = zipfile.ZipFile(temp_zip_file, "w",
                                    compression=zipfile.ZIP_DEFLATED)
+
+    cache_size = OPTIONS.info_dict.get("cache_size", None)
+    if cache_size is None:
+      raise RuntimeError("can't determine the cache partition size")
+    OPTIONS.cache_size = cache_size
 
     if OPTIONS.incremental_source is None:
       WriteFullOTAPackage(input_zip, output_zip)

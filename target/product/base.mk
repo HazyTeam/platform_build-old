@@ -25,7 +25,6 @@ PRODUCT_PACKAGES += \
     android.policy \
     android.test.runner \
     app_process \
-    applypatch \
     blkid \
     bmgr \
     bugreport \
@@ -51,7 +50,6 @@ PRODUCT_PACKAGES += \
     libcamera_client \
     libcameraservice \
     libdl \
-    libdrmclearkeyplugin \
     libeffectproxy \
     libeffects \
     libinput \
@@ -111,6 +109,7 @@ PRODUCT_PACKAGES += \
     run-as \
     schedtest \
     sdcard \
+    secdiscard \
     services \
     settings \
     sgdisk \
@@ -130,6 +129,5 @@ PRODUCT_COPY_FILES := $(call add-to-product-copy-files-if-exists,\
 #       classes will be compiled.
 PRODUCT_COPY_FILES += $(call add-to-product-copy-files-if-exists,\
     frameworks/base/compiled-classes:system/etc/compiled-classes)
-
 
 $(call inherit-product, $(SRC_TARGET_DIR)/product/embedded.mk)

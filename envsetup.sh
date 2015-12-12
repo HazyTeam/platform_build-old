@@ -77,7 +77,6 @@ function check_product()
        CUSTOM_BUILD=
     fi
     export CUSTOM_BUILD
-
         TARGET_PRODUCT=$1 \
         TARGET_BUILD_VARIANT= \
         TARGET_BUILD_TYPE= \
@@ -140,7 +139,6 @@ function setpaths()
     # defined in core/config.mk
     targetgccversion=$(get_build_var TARGET_GCC_VERSION)
     targetgccversion2=$(get_build_var 2ND_TARGET_GCC_VERSION)
-    targetlegacygccversion=$(get_build_var TARGET_LEGACY_GCC_VERSION)
     export TARGET_GCC_VERSION=$targetgccversion
 
     # The gcc toolchain does not exists for windows/cygwin. In this case, do not reference it.
@@ -176,7 +174,7 @@ function setpaths()
     case $ARCH in
         arm)
             # Legacy toolchain configuration used for ARM kernel compilation
-            toolchaindir=arm/arm-eabi-$targetlegacygccversion/bin
+            toolchaindir=arm/arm-eabi-$targetgccversion/bin
             if [ -d "$gccprebuiltdir/$toolchaindir" ]; then
                  export ARM_EABI_TOOLCHAIN="$gccprebuiltdir/$toolchaindir"
                  ANDROID_KERNEL_TOOLCHAIN_PATH="$ARM_EABI_TOOLCHAIN":
@@ -471,12 +469,12 @@ function add_lunch_combo()
 }
 
 # add the default one here
-add_lunch_combo aosp_arm-eng
-add_lunch_combo aosp_arm64-eng
-add_lunch_combo aosp_mips-eng
-add_lunch_combo aosp_mips64-eng
-add_lunch_combo aosp_x86-eng
-add_lunch_combo aosp_x86_64-eng
+#add_lunch_combo aosp_arm-eng
+#add_lunch_combo aosp_arm64-eng
+#add_lunch_combo aosp_mips-eng
+#add_lunch_combo aosp_mips64-eng
+#add_lunch_combo aosp_x86-eng
+#add_lunch_combo aosp_x86_64-eng
 
 function print_lunch_menu()
 {
@@ -1437,14 +1435,20 @@ function godir () {
         return
     fi
     T=$(gettop)
-    if [[ ! -f $T/filelist ]]; then
+    if [ ! "$OUT_DIR" = "" ]; then
+        mkdir -p $OUT_DIR
+        FILELIST=$OUT_DIR/filelist
+    else
+        FILELIST=$T/filelist
+    fi
+    if [[ ! -f $FILELIST ]]; then
         echo -n "Creating index..."
-        (\cd $T; find . -wholename ./out -prune -o -wholename ./.repo -prune -o -type f > filelist)
+        (\cd $T; find . -wholename ./out -prune -o -wholename ./.repo -prune -o -type f > $FILELIST)
         echo " Done"
         echo ""
     fi
     local lines
-    lines=($(\grep "$1" $T/filelist | sed -e 's/\/[^/]*$//' | sort | uniq))
+    lines=($(\grep "$1" $FILELIST | sed -e 's/\/[^/]*$//' | sort | uniq))
     if [[ ${#lines[@]} = 0 ]]; then
         echo "Not found"
         return

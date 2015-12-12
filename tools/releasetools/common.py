@@ -59,6 +59,8 @@ class Options(object):
     self.device_specific = None
     self.extras = {}
     self.info_dict = None
+    self.source_info_dict = None
+    self.target_info_dict = None
     self.worker_threads = None
 
 
@@ -390,7 +392,9 @@ def BuildBootableImage(sourcedir, fs_config_file, info_dict=None):
     img_keyblock = tempfile.NamedTemporaryFile()
     cmd = [info_dict["vboot_signer_cmd"], info_dict["futility"],
            img_unsigned.name, info_dict["vboot_key"] + ".vbpubk",
-           info_dict["vboot_key"] + ".vbprivk", img_keyblock.name,
+           info_dict["vboot_key"] + ".vbprivk",
+           info_dict["vboot_subkey"] + ".vbprivk",
+           img_keyblock.name,
            img.name]
     p = Run(cmd, stdout=subprocess.PIPE)
     p.communicate()
@@ -1194,11 +1198,16 @@ class BlockDifference(object):
     self.path = os.path.join(tmpdir, partition)
     b.Compute(self.path)
 
-    _, self.device = GetTypeAndDevice("/" + partition, OPTIONS.info_dict)
+    if src is None:
+      _, self.device = GetTypeAndDevice("/" + partition, OPTIONS.info_dict)
+    else:
+      _, self.device = GetTypeAndDevice("/" + partition,
+                                        OPTIONS.source_info_dict)
 
   def WriteScript(self, script, output_zip, progress=None):
     if not self.src:
       # write the output unconditionally
+      #script.Print("Patching %s image unconditionally..." % (self.partition,))
       script.Print(" ")
       script.Print("Flashing System..")
     else:
@@ -1262,6 +1271,7 @@ class BlockDifference(object):
       script.AppendExtra('if range_sha1("%s", "%s") == "%s" then' % (
                          self.device, ranges_str,
                          self._HashZeroBlocks(self.tgt.extended.size())))
+      #script.Print('Verified the updated %s image.' % (partition,))
       script.Print(" ")
       script.Print("Verified System..")
       script.AppendExtra(
@@ -1270,6 +1280,7 @@ class BlockDifference(object):
           'update");\n'
           'endif;' % (partition,))
     else:
+      #script.Print('Verified the updated %s image.' % (partition,))
       script.Print(" ")
       script.Print("Verified System..")
 
@@ -1394,6 +1405,8 @@ def MakeRecoveryPatch(input_dir, output_sink, recovery_img, boot_img,
   output_sink("recovery-from-boot.p", patch)
 
   try:
+    # The following GetTypeAndDevice()s need to use the path in the target
+    # info_dict instead of source_info_dict.
     boot_type, boot_device = GetTypeAndDevice("/boot", info_dict)
     recovery_type, recovery_device = GetTypeAndDevice("/recovery", info_dict)
   except KeyError:

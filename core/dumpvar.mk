@@ -61,15 +61,15 @@ endif
 
 endif # CALLED_FROM_SETUP
 
-# MUST NOT BE DECLARED HERE
-# HAZY_VERSION := 5.0
-
 ifneq ($(PRINT_BUILD_CONFIG),)
 HOST_OS_EXTRA:=$(shell python -c "import platform; print(platform.platform())")
 $(info ============================================)
 $(info   PLATFORM_VERSION_CODENAME=$(PLATFORM_VERSION_CODENAME))
 $(info   PLATFORM_VERSION=$(PLATFORM_VERSION))
 $(info   HAZY_VERSION=$(HAZY_VERSION))
+ifneq ($(PRINT_BUILD_CONFIG),)
+HOST_OS_EXTRA:=$(shell python -c "import platform; print(platform.platform())")
+$(info )
 $(info   TARGET_PRODUCT=$(TARGET_PRODUCT))
 $(info   TARGET_BUILD_VARIANT=$(TARGET_BUILD_VARIANT))
 $(info   TARGET_BUILD_TYPE=$(TARGET_BUILD_TYPE))
@@ -80,6 +80,14 @@ $(info   TARGET_CPU_VARIANT=$(TARGET_CPU_VARIANT))
 $(info   TARGET_2ND_ARCH=$(TARGET_2ND_ARCH))
 $(info   TARGET_2ND_ARCH_VARIANT=$(TARGET_2ND_ARCH_VARIANT))
 $(info   TARGET_2ND_CPU_VARIANT=$(TARGET_2ND_CPU_VARIANT))
+$(info   TARGET_GCC_VERSION=$(TARGET_GCC_VERSION))
+$(info   TARGET_NDK_GCC_VERSION=$(TARGET_NDK_GCC_VERSION))
+
+ifdef TARGET_GCC_VERSION_ARM
+$(info   TARGET_KERNEL_TOOLCHAIN=$(TARGET_GCC_VERSION_ARM))
+else
+$(info   TARGET_KERNEL_TOOLCHAIN=$(TARGET_GCC_VERSION))
+endif
 $(info   HOST_ARCH=$(HOST_ARCH))
 $(info   HOST_OS=$(HOST_OS))
 $(info   HOST_OS_EXTRA=$(HOST_OS_EXTRA))
@@ -87,4 +95,5 @@ $(info   HOST_BUILD_TYPE=$(HOST_BUILD_TYPE))
 $(info   BUILD_ID=$(BUILD_ID))
 $(info   OUT_DIR=$(OUT_DIR))
 $(info ============================================)
+endif
 endif

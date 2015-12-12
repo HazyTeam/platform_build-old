@@ -342,7 +342,11 @@ var:sdk.linux_download
   <tr>
     <td rowspan="3">Windows</td>
     <td>
+<<<<<<< HEAD
   <a onclick="return onDownload(this)" id="win-bundle"
+=======
+  <a onclick="return onDownload(this,false,true)" id="win-bundle"
+>>>>>>> 467ade338322dd09e64001342af110ed904ba4cb
     href="https://dl.google.com/dl/android/studio/install/<?cs var:studio.version ?>/<?cs var:studio.win_bundle_exe_download ?>"
     ><?cs var:studio.win_bundle_exe_download ?></a><br>(Recommended)
     </td>
@@ -353,7 +357,11 @@ var:sdk.linux_download
   <tr>
     <!-- blank TD from Windows rowspan -->
     <td>
+<<<<<<< HEAD
   <a onclick="return onDownload(this)"
+=======
+  <a onclick="return onDownload(this,false,true)" id="win-bundle-notools"
+>>>>>>> 467ade338322dd09e64001342af110ed904ba4cb
     href="https://dl.google.com/dl/android/studio/install/<?cs var:studio.version ?>/<?cs var:studio.win_notools_exe_download ?>"
     ><?cs var:studio.win_notools_exe_download ?></a><br>(No SDK tools included)
     </td>
@@ -364,7 +372,11 @@ var:sdk.linux_download
   <tr>
     <!-- blank TD from Windows rowspan -->
     <td>
+<<<<<<< HEAD
   <a onclick="return onDownload(this)"
+=======
+  <a onclick="return onDownload(this,false,true)" id="win-bundle-zip"
+>>>>>>> 467ade338322dd09e64001342af110ed904ba4cb
     href="https://dl.google.com/dl/android/studio/ide-zips/<?cs var:studio.version ?>/<?cs var:studio.win_bundle_download ?>"
     ><?cs var:studio.win_bundle_download ?></a>
     </td>
@@ -375,7 +387,11 @@ var:sdk.linux_download
   <tr>
     <td><nobr>Mac OS X</nobr></td>
     <td>
+<<<<<<< HEAD
   <a onclick="return onDownload(this)" id="mac-bundle"
+=======
+  <a onclick="return onDownload(this,false,true)" id="mac-bundle"
+>>>>>>> 467ade338322dd09e64001342af110ed904ba4cb
     href="https://dl.google.com/dl/android/studio/install/<?cs var:studio.version ?>/<?cs var:studio.mac_bundle_download ?>"
     ><?cs var:studio.mac_bundle_download ?></a>
     </td>
@@ -386,7 +402,11 @@ var:sdk.linux_download
   <tr>
     <td>Linux</td>
     <td>
+<<<<<<< HEAD
   <a onclick="return onDownload(this)" id="linux-bundle"
+=======
+  <a onclick="return onDownload(this,false,true)" id="linux-bundle"
+>>>>>>> 467ade338322dd09e64001342af110ed904ba4cb
     href="https://dl.google.com/dl/android/studio/ide-zips/<?cs var:studio.version ?>/<?cs var:studio.linux_bundle_download ?>"
     ><?cs var:studio.linux_bundle_download ?></a>
     </td>
@@ -450,7 +470,15 @@ var:sdk.linux_download
     }
 
     $("#downloadForRealz").attr('bundle', bundle);
+<<<<<<< HEAD
     $("a#downloadForRealz").attr("name", $(link).attr('href'));
+=======
+    if (bundle && !button) {
+      $("a#downloadForRealz").attr("name", "#" + $(link).attr('id'));
+    } else {
+      $("a#downloadForRealz").attr("name", $(link).attr('href'));
+    }
+>>>>>>> 467ade338322dd09e64001342af110ed904ba4cb
 
     $("#tos").show();
     $("#landing").hide();
