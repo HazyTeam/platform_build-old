@@ -37,14 +37,14 @@ except ImportError:
 # set this to the default remote to use in repo
 default_rem = "github"
 # set this to the default revision to use (branch/tag name)
-default_rev = "mm6.0"
+default_rev = "hazy-mallow"
 # set this to the remote that you use for projects from your team repos
-# example fetch="https://github.com/PhotonAOSP"
+# example fetch="https://github.com/HazyTeam"          
 default_team_rem = "github"
 # this shouldn't change unless google makes changes
 local_manifest_dir = ".repo/local_manifests"
 # change this to your name on github (or equivalent hosting)
-android_team = "PhotonAOSP"
+android_team = "HazyTeam"
 
 
 def check_repo_exists(git_data):
@@ -220,13 +220,13 @@ def parse_device_from_folder(device):
     elif len(search) == 1:
         location = search[0]
     else:
-        print("Your device was not found. Attempting to retrieve device repository from PhotonAOSP's Github..")
+        print("Your device was not found. Attempting to retrieve device repository from HazyTeam's Github..")
         location = parse_device_from_manifest(device)
     return location
 
 
 def parse_dependency_file(location):
-    dep_file = "photon.dependencies"
+    dep_file = "hazy.dependencies"
     dep_location = '/'.join([location, dep_file])
     if not os.path.isfile(dep_location):
         print("WARNING: %s file not found" % dep_location)
